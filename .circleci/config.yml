@@ -16,7 +16,7 @@ jobs:
           name: Build the website
           command: bundle exec jekyll build
 
-      # Push to the inferentialthinking.github.io repository so it goes live
+      # Push to the repository so it goes live
       - run:
           name: Deploying site using ghp-import
           command: |
