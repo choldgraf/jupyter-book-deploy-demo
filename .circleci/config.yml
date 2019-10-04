@@ -1,46 +1,6 @@
 version: 2.1
 jobs:
-  deploy:
-    docker:
-      - image: circleci/python:3.6-stretch
-    steps:
-      - checkout
-      # Add deployment key fingerprint for CircleCI to use for a push
-      - add_ssh_keys:
-          fingerprints:
-            - "25:11:c6:86:6a:aa:66:ed:d9:56:b0:df:51:ca:f4:18"
-
-      - prepare_jekyll_installation
-
-      - run:
-          name: Build the website
-          command: bundle exec jekyll build
-
-      # Push to the repository so it goes live
-      - run:
-          name: Deploying site using ghp-import
-          command: |
-            pip install ghp-import
-            ghp-import -p -f -n _site/
-
-  demo_site:
-    docker:
-      - image: circleci/python:3.6-stretch
-    steps:
-      # Attach the built html files
-      - checkout
-      - prepare_jekyll_installation
-
-      - run:
-          name: Build the website
-          command: bundle exec jekyll build --baseurl /0/html/
-
-      # Tell Circle to store the documentation output in a folder that we can access later
-      - store_artifacts:
-          path: ./_site/
-          destination: html
-
-  page_html:
+  build_book:
     docker:
       - image: circleci/python:3.6-stretch
     steps:
@@ -49,69 +9,22 @@ jobs:
       - checkout
       # Update our path
       - run: echo "export PATH=~/.local/bin:$PATH" >> $BASH_ENV
-      # Restore cached files to speed things up
-      - restore_cache:
-          keys:
-            - cache-pip
 
       # Install the packages needed to build our documentation
       # This will depend on your particular package!
       - run: pip install --user -r requirements.txt
       - run: pip install --user -U git+https://github.com/jupyter/jupyter-book.git
 
-      # Cache some files for a speedup in subsequent builds
-      - save_cache:
-          key: cache-pip
-          paths:
-            - ~/.cache/pip
+      - run:
+          name: Create book
+          command: jupyter-book create mybook --content-folder content/
 
       - run:
-          name: Build site html
-          command: jupyter-book build .
+          name: Build book html
+          command: jupyter-book build ./mybook
 
-      # Persist the specified paths (see https://circleci.com/docs/2.0/workflows/#using-workspaces-to-share-data-among-jobs)
-      - persist_to_workspace:
-          root: .
-          paths:
-            - ./_build/
-
-
-# Tell CircleCI to use this workflow when it builds the site
-workflows:
-  version: 2
-  default:
-    jobs:
-      - page_html
-      - demo_site:
-          requires:
-            - page_html
-          filters:
-            branches:
-              ignore:
-                - gh-pages
-      - deploy:
-          requires:
-            - page_html
-          filters:
-            branches:
-              only:
-                - gh-pages
-
-commands:
-  prepare_jekyll_installation:
-    steps:
-      # Attach the built html files
-      - attach_workspace:
-          # Must be absolute path or relative path from working_directory
-          at: /tmp/workspace
-
-      # Grab the the built html from the last step
-      - run:
-          name: Copy over built site files
-          command: |
-            rm -rf ./_build
-            cp -r /tmp/workspace/_build ./
-
+      # Install Jekyll so we can build the page files
+      # We'll use the URL for jekyll artifact preview
       # Install miniconda to test install
       - run:
           name: install miniconda
@@ -138,4 +51,22 @@ commands:
       - run:
           name: Install book Ruby dependencies
           command: |
+            cd mybook
             bundle install
+
+      - run:
+          name: Build the website
+          command: |
+            cd mybook
+            bundle exec jekyll build --baseurl /0/html/
+
+      # Tell Circle to store the documentation output in a folder that we can access later
+      - store_artifacts:
+          path: ./mybook/_site/
+          destination: html
+
+workflows:
+  version: 2
+  default:
+    jobs:
+      - build_book
