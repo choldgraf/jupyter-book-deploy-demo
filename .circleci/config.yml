@@ -23,7 +23,7 @@ jobs:
           command: |
             cd mybook
             make install
-            bundle exec jekyll build --baseurl /0/html/
+            bundle exec jekyll build
 
       # If we're on master, push to a gh-pages branch
       - add_ssh_keys:
