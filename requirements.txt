@@ -1,1 +1,2 @@
+# Required to run the book pages
 datascience
